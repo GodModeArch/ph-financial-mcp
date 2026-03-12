@@ -1,6 +1,6 @@
-import type { ApiMeta, Env } from "./types.js";
+import type { ApiMeta } from "./types.js";
 
-export function buildMeta(env: Env): ApiMeta {
+export function buildMeta(env: Cloudflare.Env): ApiMeta {
   return {
     dataset_version: env.DATASET_VERSION,
     dataset_date: env.DATASET_DATE,

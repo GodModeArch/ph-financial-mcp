@@ -36,12 +36,6 @@ export interface Bank {
   source_document: string;
 }
 
-export interface Env {
-  DATASET_VERSION: string;
-  DATASET_DATE: string;
-  LAST_SYNCED: string;
-}
-
 export interface ApiMeta {
   dataset_version: string;
   dataset_date: string;
