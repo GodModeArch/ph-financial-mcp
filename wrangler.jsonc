@@ -5,10 +5,18 @@
   "compatibility_flags": ["nodejs_compat"],
   "routes": [
     {
-      "pattern": "bsp-banks.godmode.ph/*",
+      "pattern": "bsp-banks.godmode.ph",
       "custom_domain": true
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_OBJECT",
+        "class_name": "BSPBanksMCP"
+      }
+    ]
+  },
   "vars": {
     "DATASET_VERSION": "1.0.0",
     "DATASET_DATE": "2026-03-12",
@@ -17,7 +25,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["BSPBanksMCP"]
+      "new_sqlite_classes": ["BSPBanksMCP"]
     }
   ]
 }
