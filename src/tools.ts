@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Bank } from "./types.js";
-import { searchBanks, getBankByCode, listByType, listByLocation, getBankStats } from "./data.js";
-import { buildMeta, toolResult, toolPaginatedResult, toolError } from "./response.js";
+import type { Bank, PopulationLookup } from "./types.js";
+import { searchBanks, getBankByCode, listByType, listByLocation, getBankStats, getBankingDensity, findUnderbankedAreas } from "./data.js";
+import { buildMeta, buildDensityMeta, toolResult, toolPaginatedResult, toolError } from "./response.js";
 
 const BankTypeSchema = z.enum([
   "universal_commercial",
@@ -18,8 +18,9 @@ const BankTypeSchema = z.enum([
 
 const StatusSchema = z.enum(["active", "closed", "under_receivership", "merged"]);
 
-export function registerTools(server: McpServer, banks: Bank[], env: Cloudflare.Env) {
+export function registerTools(server: McpServer, banks: Bank[], pop: PopulationLookup, env: Cloudflare.Env) {
   const meta = buildMeta(env);
+  const densityMeta = buildDensityMeta(env);
 
   server.tool(
     "search_banks",
@@ -87,11 +88,12 @@ export function registerTools(server: McpServer, banks: Bank[], env: Cloudflare.
     {
       psgc_code: z.string().length(10).describe("10-digit PSGC code: region, province, or municipality"),
       bank_type: BankTypeSchema.optional().describe("Filter by bank type"),
+      status: StatusSchema.optional().describe("Filter by status. Default: 'active'"),
       limit: z.number().min(1).max(100).optional().describe("Max results. Default: 50"),
       offset: z.number().min(0).optional().describe("Pagination offset. Default: 0"),
     },
-    async ({ psgc_code, bank_type, limit = 50, offset = 0 }) => {
-      const results = listByLocation(banks, { psgc_code, bank_type });
+    async ({ psgc_code, bank_type, status, limit = 50, offset = 0 }) => {
+      const results = listByLocation(banks, { psgc_code, bank_type, status });
       const page = results.slice(offset, offset + limit);
 
       return toolPaginatedResult(page, meta, {
@@ -110,6 +112,41 @@ export function registerTools(server: McpServer, banks: Bank[], env: Cloudflare.
     async () => {
       const stats = getBankStats(banks);
       return toolResult(stats, meta);
+    }
+  );
+
+  server.tool(
+    "get_banking_density",
+    "Get banking density for a location: population, bank count, and population-per-bank ratio. Combines BSP bank directory with 2024 Census population data. Accepts region, province, or municipality PSGC codes. Note: bank count reflects head office registrations only, not branch locations.",
+    {
+      psgc_code: z.string().length(10).describe("10-digit PSGC code: region, province, or municipality"),
+      bank_type: BankTypeSchema.optional().describe("Filter by bank type to get type-specific density"),
+    },
+    async ({ psgc_code, bank_type }) => {
+      const result = getBankingDensity(banks, pop, { psgc_code, bank_type });
+      if (!result) {
+        return toolError(`No population data found for PSGC code: ${psgc_code}. Use the psgc-mcp server to look up valid codes.`);
+      }
+      return toolResult(result, densityMeta);
+    }
+  );
+
+  server.tool(
+    "find_underbanked_areas",
+    "Find areas with the highest population-per-bank ratios (most underbanked). Ranks regions or provinces by how many people each bank head office serves. Combines BSP directory with 2024 Census data. Note: this measures head office density, not branch coverage.",
+    {
+      level: z.enum(["region", "province"]).describe("Geographic level to analyze: 'region' or 'province'"),
+      bank_type: BankTypeSchema.optional().describe("Filter by bank type for type-specific analysis"),
+      limit: z.number().min(1).max(50).optional().describe("Max results. Default: 20"),
+    },
+    async ({ level, bank_type, limit = 20 }) => {
+      const results = findUnderbankedAreas(banks, pop, { level, limit, bank_type });
+      return toolResult({ areas: results, data_notes: [
+        "Population: 2024 Census of Population (PSA). This is a point-in-time count and may not reflect current population.",
+        "Bank count: based on BSP-registered head office locations only. Branch/office locations are not included.",
+        "Areas with 0 banks show total population as the ratio. These areas may still be served by bank branches headquartered elsewhere.",
+        "Higher population_per_bank = fewer banks relative to population (more underbanked).",
+      ]}, densityMeta);
     }
   );
 }

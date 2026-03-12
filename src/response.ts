@@ -10,6 +10,21 @@ export function buildMeta(env: Cloudflare.Env): ApiMeta {
   };
 }
 
+export interface DensityMeta extends ApiMeta {
+  population_source: string;
+  population_year: string;
+  population_dataset: string;
+}
+
+export function buildDensityMeta(env: Cloudflare.Env): DensityMeta {
+  return {
+    ...buildMeta(env),
+    population_source: "Philippine Statistics Authority (PSA)",
+    population_year: "2024",
+    population_dataset: "2024 Census of Population, PSGC Q4 2025 Publication",
+  };
+}
+
 export function wrapResponse<T>(data: T, meta: ApiMeta) {
   return {
     _meta: meta,

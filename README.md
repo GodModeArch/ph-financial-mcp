@@ -45,6 +45,8 @@ Works with Claude Desktop, Cursor, Windsurf, and any MCP-compatible client.
 | `list_banks_by_type` | List all banks of a specific category | Yes |
 | `list_banks_by_location` | List banks in a region, province, or municipality (via PSGC code) | Yes |
 | `get_bank_stats` | Aggregate counts by type, region, and status | No |
+| `get_banking_density` | Population-per-bank ratio for any region, province, or municipality | No |
+| `find_underbanked_areas` | Rank regions or provinces by banking coverage (most underbanked first) | No |
 
 All tools default to active institutions. Pass `status: "closed"` or `status: "under_receivership"` to include inactive ones.
 
@@ -87,6 +89,13 @@ These are natural-language prompts you can give to an LLM connected to this serv
 - "How many banks are in NCR vs. Visayas vs. Mindanao?"
 - "What percentage of Philippine banks are rural banks?"
 
+**Banking density and coverage (uses 2024 Census population data):**
+- "What is the banking density in NCR vs. CALABARZON?"
+- "How many people per bank are there in Cebu?"
+- "Which regions in the Philippines are most underbanked?"
+- "Rank provinces by rural bank coverage."
+- "What is the population-to-bank ratio in Makati vs. Quezon City?"
+
 ### Tool Call Examples
 
 For developers integrating directly:
@@ -99,6 +108,10 @@ list_banks_by_type({ bank_type: "digital" })
 list_banks_by_location({ psgc_code: "1300000000" })            // NCR region
 list_banks_by_location({ psgc_code: "1376000000", bank_type: "thrift" })  // Makati thrift banks
 get_bank_stats({})
+get_banking_density({ psgc_code: "1300000000" })                 // NCR banking density
+get_banking_density({ psgc_code: "1376001000", bank_type: "digital" })  // Digital bank density in Makati
+find_underbanked_areas({ level: "region" })                       // Most underbanked regions
+find_underbanked_areas({ level: "province", bank_type: "rural" }) // Provinces with fewest rural banks
 ```
 
 ## Data Methodology
@@ -143,6 +156,12 @@ We fuzzy-match each institution's head office address to a PSGC municipality or 
 
 **Result:** 586 of 587 institutions matched (99.8%). The single unmatched institution is BPI Remittance Center HK, which is in Hong Kong.
 
+**Step 3: Population data join** (`scripts/build-population-lookup.js`)
+
+We extract population data from the [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP) project, which sources from the PSA's 2024 Census of Population (PSGC Q4 2025 Publication). The script reads all 44,000+ geographic entities and extracts 1,756 records at the region, province, city, and municipality levels into a lightweight lookup table (`data/population.json`, ~280KB).
+
+This enables the `get_banking_density` and `find_underbanked_areas` tools. For each PSGC area, we cross-reference the number of bank head offices registered there against the area's population to compute a population-per-bank ratio.
+
 ### Data Coverage
 
 | Field | Coverage |
@@ -162,6 +181,8 @@ We fuzzy-match each institution's head office address to a PSGC municipality or 
 - **Status field.** The BSP API does not expose an explicit "closed" or "under_receivership" flag. All institutions in the current directory are listed as `active`. Closed institutions are removed from the BSP directory entirely, so they won't appear here.
 - **Institution codes.** We assign sequential codes sorted by type and name, since the BSP API does not expose AMLC institution codes. Codes are stable within a dataset version but may shift when institutions are added or removed.
 - **Address quality varies.** Some addresses are abbreviated or incomplete (e.g. "Ayala Triangle Ayala Ave Makati Ct"). PSGC matching handles most of these but a few edge cases may have imprecise municipality matches.
+- **Population data is from the 2024 Census.** The banking density tools use 2024 Census of Population figures from PSA. This is not a live population count. Actual current population may differ, especially in fast-growing urban areas.
+- **Head office locations only.** Banking density is computed from BSP-registered head office addresses, not branch locations. A municipality showing 0 banks may still be served by branches of banks headquartered elsewhere. The `num_offices` field shows total offices per bank nationwide, but we cannot attribute individual branches to specific municipalities.
 
 ## Response Format
 
@@ -189,6 +210,19 @@ Paginated responses add:
     "offset": 0,
     "limit": 50,
     "has_more": true
+  }
+}
+```
+
+Density tool responses include additional provenance fields:
+
+```json
+{
+  "_meta": {
+    "...": "...",
+    "population_source": "Philippine Statistics Authority (PSA)",
+    "population_year": "2024",
+    "population_dataset": "2024 Census of Population, PSGC Q4 2025 Publication"
   }
 }
 ```
@@ -231,10 +265,11 @@ Check if BSP has updated their directory:
 To refresh the full dataset:
 
 ```bash
-node scripts/fetch-bsp-api.js    # Fetch all institutions from BSP SharePoint API
-node scripts/psgc-join.js        # Enrich with PSGC location codes
-npm test                          # Run tests to verify data integrity
-npm run deploy                    # Deploy updated data to Cloudflare
+node scripts/fetch-bsp-api.js           # Fetch all institutions from BSP SharePoint API
+node scripts/psgc-join.js               # Enrich with PSGC location codes
+node scripts/build-population-lookup.js  # Rebuild population lookup from PSGC data
+npm test                                 # Run tests to verify data integrity
+npm run deploy                           # Deploy updated data to Cloudflare
 ```
 
 The ETL is idempotent. Running it again will overwrite `data/banks.json` with fresh data. Review the diff before deploying.
@@ -246,7 +281,7 @@ git clone https://github.com/GodModeArch/bsp-bank-directory-mcp.git
 cd bsp-bank-directory-mcp
 npm install
 npm run dev          # Local dev server on :8787
-npm test             # Run tests (17 tests)
+npm test             # Run tests (26 tests)
 npm run typecheck    # TypeScript strict mode check
 ```
 
@@ -255,17 +290,19 @@ npm run typecheck    # TypeScript strict mode check
 ```
 src/
   index.ts          # Cloudflare Worker entry point, McpAgent class
-  tools.ts          # 5 MCP tool definitions with Zod schemas
+  tools.ts          # 7 MCP tool definitions with Zod schemas
   data.ts           # Search, filter, and aggregation functions
   response.ts       # Response envelope helpers
   types.ts          # TypeScript interfaces
 data/
   banks.json        # The dataset (587 institutions, bundled into worker)
+  population.json   # Population by region/province/municipality (2024 Census, 1,756 areas)
   etl-log.json      # ETL run metadata
   psgc-join-log.json # PSGC matching results and unmatched list
 scripts/
   fetch-bsp-api.js  # Fetches from BSP SharePoint REST API
   psgc-join.js      # Fuzzy-matches addresses to PSGC codes
+  build-population-lookup.js  # Extracts population data from PSGC-MCP
   check-updates.sh  # Checks if BSP has new data
   download-pdfs.sh  # Legacy: downloads supplementary BSP PDFs
 test/

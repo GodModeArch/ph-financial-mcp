@@ -1,12 +1,14 @@
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Bank } from "./types.js";
+import type { Bank, PopulationLookup } from "./types.js";
 import { registerTools } from "./tools.js";
 
-// Static import of bank data - bundled into the worker at build time
+// Static imports - bundled into the worker at build time
 import banksData from "../data/banks.json";
+import populationData from "../data/population.json";
 
 const banks = banksData as unknown as Bank[];
+const population = populationData as unknown as PopulationLookup;
 
 export class BSPBanksMCP extends McpAgent {
   server = new McpServer({
@@ -15,7 +17,7 @@ export class BSPBanksMCP extends McpAgent {
   });
 
   async init() {
-    registerTools(this.server, banks, this.env);
+    registerTools(this.server, banks, population, this.env);
   }
 }
 
@@ -40,6 +42,8 @@ export default {
             "list_banks_by_type",
             "list_banks_by_location",
             "get_bank_stats",
+            "get_banking_density",
+            "find_underbanked_areas",
           ],
           source: "Bangko Sentral ng Pilipinas (BSP)",
         }),
