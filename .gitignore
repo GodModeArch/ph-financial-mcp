@@ -2,7 +2,42 @@ node_modules/
 dist/
 .wrangler/
 .dev.vars
-data/raw/*.pdf
 __pycache__/
 *.pyc
 .venv/
+
+# IDE
+.idea
+.vscode
+
+# Claude Code
+.claude/
+
+# MCP client config
+.mcp.json
+
+# Shell dotfiles (sandbox artifacts)
+.bash_profile
+.bashrc
+.zshrc
+.zprofile
+.profile
+.gitconfig
+.ripgreprc
+.gitmodules
+
+# Sandbox device files
+HEAD
+config
+hooks
+objects
+refs
+
+# ETL raw/intermediate artifacts
+data/raw/*.pdf
+data/institutions-raw.json
+data/branches-raw.json
+data/branches-etl-log.json
+data/branch-psgc-join-log.json
+data/bsp-types.json
+data/psgc-join-log.json

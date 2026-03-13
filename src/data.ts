@@ -19,6 +19,7 @@ interface SearchParams {
 export function searchBanks(banks: Bank[], params: SearchParams): Bank[] {
   const { query, bank_type, status = "active" } = params;
   const normalizedQuery = normalize(query);
+  if (!normalizedQuery) return [];
 
   const scored: { bank: Bank; score: number }[] = [];
 
@@ -72,23 +73,14 @@ interface ListByLocationParams {
   status?: BankStatus;
 }
 
-export function listByLocation(banks: Bank[], params: ListByLocationParams): Bank[] {
+export function listByLocation(banks: Bank[], pop: PopulationLookup, params: ListByLocationParams): Bank[] {
   const { psgc_code, bank_type, status = "active" } = params;
+  const { field, code } = resolvePsgcMatch(pop, psgc_code);
 
   return banks.filter((b) => {
     if (b.status !== status) return false;
     if (bank_type && b.bank_type !== bank_type) return false;
-
-    const isRegionCode = psgc_code.endsWith("00000000");
-    const isProvinceCode = !isRegionCode && psgc_code.endsWith("000000");
-
-    if (isRegionCode) {
-      return b.region_code === psgc_code;
-    } else if (isProvinceCode) {
-      return b.province_code === psgc_code;
-    } else {
-      return b.psgc_muni_code === psgc_code;
-    }
+    return b[field] === code;
   });
 }
 
@@ -139,7 +131,34 @@ function detectPsgcLevel(code: string): "region" | "province" | "municipality" {
   return "municipality";
 }
 
-function getPopulation(pop: PopulationLookup, code: string): { name: string; population: number } | null {
+export interface PsgcMatch {
+  level: "region" | "province" | "municipality";
+  field: "region_code" | "province_code" | "psgc_muni_code";
+  code: string;
+}
+
+export function resolvePsgcMatch(pop: PopulationLookup, psgc_code: string): PsgcMatch {
+  const entry = pop[psgc_code];
+  if (entry) {
+    if (entry.level === "Reg") {
+      return { level: "region", field: "region_code", code: psgc_code };
+    }
+    if (entry.level === "Prov" || entry.level === "Dist") {
+      return { level: "province", field: "province_code", code: entry.province_code || psgc_code };
+    }
+    return { level: "municipality", field: "psgc_muni_code", code: psgc_code };
+  }
+  // Fallback to trailing-zero detection for codes not in population data
+  if (psgc_code.endsWith("00000000")) {
+    return { level: "region", field: "region_code", code: psgc_code };
+  }
+  if (psgc_code.endsWith("000000")) {
+    return { level: "province", field: "province_code", code: psgc_code };
+  }
+  return { level: "municipality", field: "psgc_muni_code", code: psgc_code };
+}
+
+export function getPopulation(pop: PopulationLookup, code: string): { name: string; population: number } | null {
   const direct = pop[code];
   if (direct) {
     return { name: direct.name, population: direct.population };
@@ -172,19 +191,16 @@ export function getBankingDensity(
   params: DensityParams
 ): DensityResult | null {
   const { psgc_code, bank_type } = params;
-  const level = detectPsgcLevel(psgc_code);
+  const { level, field, code } = resolvePsgcMatch(pop, psgc_code);
 
   const popData = getPopulation(pop, psgc_code);
   if (!popData) return null;
 
   // Filter active banks in the area
-  let areaBanks = banks.filter((b) => {
+  const areaBanks = banks.filter((b) => {
     if (b.status !== "active") return false;
     if (bank_type && b.bank_type !== bank_type) return false;
-
-    if (level === "region") return b.region_code === psgc_code;
-    if (level === "province") return b.province_code === psgc_code;
-    return b.psgc_muni_code === psgc_code;
+    return b[field] === code;
   });
 
   const by_type: Record<string, number> = {};
@@ -239,9 +255,9 @@ export function findUnderbankedAreas(
     }
   }
 
-  // Also include province codes from banks (some may not be Prov-level entities)
+  // Also include province codes from active banks
   if (level === "province") {
-    for (const bank of banks) {
+    for (const bank of activeBanks) {
       if (bank.province_code) areaCodes.add(bank.province_code);
     }
   }
@@ -252,7 +268,8 @@ export function findUnderbankedAreas(
     const popData = getPopulation(pop, code);
     if (!popData || popData.population === 0) continue;
 
-    const bankCount = activeBanks.filter((b) => b[areaField] === code).length;
+    const { code: resolvedCode } = resolvePsgcMatch(pop, code);
+    const bankCount = activeBanks.filter((b) => b[areaField] === resolvedCode).length;
 
     results.push({
       psgc_code: code,

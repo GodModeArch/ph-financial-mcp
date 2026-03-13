@@ -12,6 +12,7 @@ export type BankType =
 export type BankStatus = "active" | "closed" | "under_receivership" | "merged";
 
 export interface Bank {
+  /** BSP SharePoint list item ID. Stable across ETL runs. */
   institution_code: string;
   registration_name: string;
   trade_name?: string;
@@ -72,4 +73,45 @@ export interface UnderbankedArea {
   population: number;
   bank_count: number;
   population_per_bank: number;
+}
+
+export interface Branch {
+  id: string;
+  institution_name: string;
+  branch_name: string;
+  industry: string;
+  address: string;
+  town: string;
+  province: string;
+  region: string;
+  psgc_muni_code?: string;
+  region_code?: string;
+  province_code?: string;
+  latitude: number | null;
+  longitude: number | null;
+  has_atm: boolean;
+}
+
+export interface CoverageResult {
+  psgc_code: string;
+  area_name: string;
+  area_level: string;
+  population: number;
+  total_access_points: number;
+  bank_branches: number;
+  atm_only: number;
+  nssla: number;
+  unique_institutions: number;
+  with_atm: number;
+  population_per_access_point: number | null;
+  data_notes: string[];
+}
+
+export interface InstitutionFootprint {
+  institution_name: string;
+  total_branches: number;
+  by_region: Record<string, number>;
+  by_province: Record<string, number>;
+  with_atm: number;
+  industries: Record<string, number>;
 }

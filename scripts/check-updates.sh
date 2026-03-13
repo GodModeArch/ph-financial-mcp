@@ -9,9 +9,10 @@ TEMP_FILE=$(mktemp)
 trap "rm -f $TEMP_FILE" EXIT
 
 echo "Fetching current institution count from BSP API..."
-COUNT=$(curl -s "https://www.bsp.gov.ph/_api/web/lists/getbytitle('Institutions')/ItemCount" \
+COUNT=$(curl -s --connect-timeout 10 --max-time 30 \
+  "https://www.bsp.gov.ph/_api/web/lists/getbytitle('Institutions')/ItemCount" \
   -H "Accept: application/json;odata=verbose" | \
-  grep -o '"ItemCount":[0-9]*' | grep -o '[0-9]*')
+  node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).d.ItemCount)}catch{console.log('ERROR')}})")
 
 CURRENT=$(node -e "const d = require('./data/banks.json'); console.log(d.length);" 2>/dev/null || echo "0")
 
