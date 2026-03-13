@@ -144,7 +144,11 @@ export function resolvePsgcMatch(pop: PopulationLookup, psgc_code: string): Psgc
       return { level: "region", field: "region_code", code: psgc_code };
     }
     if (entry.level === "Prov" || entry.level === "Dist") {
-      return { level: "province", field: "province_code", code: entry.province_code || psgc_code };
+      // Province entity codes (e.g. 1400100000 for Abra) match the province_code
+      // used on branches when province_code is null in population data.
+      // Fallback to psgc_code is safe because PSGC entity codes for provinces
+      // are the same codes the branch-psgc-join script assigns.
+      return { level: "province", field: "province_code", code: entry.province_code ?? psgc_code };
     }
     return { level: "municipality", field: "psgc_muni_code", code: psgc_code };
   }
