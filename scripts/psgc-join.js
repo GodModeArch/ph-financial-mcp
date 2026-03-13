@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, readdirSync } from "fs";
 import { join } from "path";
 
-const PSGC_KV_DIR = "/home/zaraaar/command-center/PSGC-MCP/scripts/data/output";
+const PSGC_KV_DIR = process.env.PSGC_KV_DIR || new URL("../../PSGC-MCP/scripts/data/output", import.meta.url).pathname;
 const BANKS_FILE = "data/banks.json";
 const LOG_FILE = "data/psgc-join-log.json";
 
@@ -58,26 +58,30 @@ function normalize(text) {
     .trim();
 }
 
-// Known Metro Manila cities with common abbreviated forms
+// Known Metro Manila cities - 2024 Census PSGC codes (138x series)
+// Order matters: more specific aliases first, MANILA last to avoid
+// "Metro Manila" in addresses matching before the actual city.
 const METRO_ALIASES = {
-  MAKATI: "1376000000",
-  TAGUIG: "1376300000",
-  PASIG: "1374600000",
-  MANDALUYONG: "1374000000",
-  QUEZON: "1374600000", // Quezon City - will be overridden by exact match
-  MANILA: "1380600000",
-  PASAY: "1374700000",
-  PARANAQUE: "1374500000",
-  PARAÑAQUE: "1374500000",
-  MUNTINLUPA: "1374400000",
-  "LAS PINAS": "1374200000",
-  "LAS PIÑAS": "1374200000",
-  MARIKINA: "1374300000",
-  "SAN JUAN": "1374800000",
+  "BONIFACIO GLOBAL": "1381500000", // BGC -> Taguig
+  "QUEZON CITY": "1381300000",
+  "LAS PINAS": "1380200000",
+  "LAS PIÑAS": "1380200000",
+  "SAN JUAN": "1381400000",
+  "PARAÑAQUE": "1381000000",
+  MAKATI: "1380300000",
+  TAGUIG: "1381500000",
+  PASIG: "1381200000",
+  MANDALUYONG: "1380500000",
+  PASAY: "1381100000",
+  PARANAQUE: "1381000000",
+  MUNTINLUPA: "1380800000",
+  MARIKINA: "1380700000",
   CALOOCAN: "1380100000",
-  MALABON: "1380200000",
-  NAVOTAS: "1380400000",
-  VALENZUELA: "1380700000",
+  MALABON: "1380400000",
+  NAVOTAS: "1380900000",
+  VALENZUELA: "1381600000",
+  PATEROS: "1381701000",
+  MANILA: "1380600000", // Last: avoids "Metro Manila" matching before specific cities
 };
 
 function extractCityCandidates(address) {
@@ -108,6 +112,13 @@ function extractCityCandidates(address) {
   if (parts.length >= 1) candidates.push(parts[parts.length - 1]);
 
   return candidates;
+}
+
+// Derive province code from municipality code when PSGC data has null provinceCode.
+// Works for standard PSGC structure: first 5 digits identify the province.
+function deriveProvinceCode(muni) {
+  if (muni.provinceCode) return muni.provinceCode;
+  return muni.code.substring(0, 5) + "00000";
 }
 
 function main() {
@@ -144,7 +155,7 @@ function main() {
         if (muni) {
           bank.psgc_muni_code = muni.code;
           bank.region_code = muni.regionCode;
-          bank.province_code = muni.provinceCode;
+          bank.province_code = deriveProvinceCode(muni);
           found = true;
           matched++;
           break;
@@ -166,22 +177,46 @@ function main() {
         const muni = psgcByNorm.get(exactMatch);
         bank.psgc_muni_code = muni.code;
         bank.region_code = muni.regionCode;
-        bank.province_code = muni.provinceCode;
+        bank.province_code = deriveProvinceCode(muni);
         found = true;
         matched++;
         break;
       }
 
       // Substring match: PSGC name contains candidate or vice versa
+      // Collect all matches and disambiguate by checking if the address mentions
+      // the province or region of any match
+      const substringMatches = [];
       for (const [psgcNorm, muni] of psgcByNorm) {
         if (norm.length >= 4 && (psgcNorm.includes(norm) || norm.includes(psgcNorm))) {
-          bank.psgc_muni_code = muni.code;
-          bank.region_code = muni.regionCode;
-          bank.province_code = muni.provinceCode;
-          found = true;
-          matched++;
-          break;
+          substringMatches.push(muni);
         }
+      }
+      if (substringMatches.length === 1) {
+        const muni = substringMatches[0];
+        bank.psgc_muni_code = muni.code;
+        bank.region_code = muni.regionCode;
+        bank.province_code = deriveProvinceCode(muni);
+        found = true;
+        matched++;
+      } else if (substringMatches.length > 1) {
+        // Disambiguate: check if address mentions a province that narrows it down
+        const normAddr = normalize(address);
+        const provinceMatch = substringMatches.find((m) => {
+          // Look for province name in the address to disambiguate
+          const provMunis = psgc.filter((p) => p.code === m.provinceCode);
+          if (provMunis.length > 0) {
+            const provName = normalize(provMunis[0].name);
+            return normAddr.includes(provName);
+          }
+          return false;
+        });
+        const pick = provinceMatch || substringMatches[0];
+        bank.psgc_muni_code = pick.code;
+        bank.region_code = pick.regionCode;
+        bank.province_code = deriveProvinceCode(pick);
+        found = true;
+        matched++;
       }
       if (found) break;
     }

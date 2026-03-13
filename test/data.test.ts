@@ -4,7 +4,7 @@ import type { Bank, PopulationLookup } from "../src/types.js";
 
 const MOCK_BANKS: Bank[] = [
   {
-    institution_code: "001",
+    institution_code: "101",
     registration_name: "BDO Unibank Inc.",
     trade_name: "BDO",
     bank_type: "universal_commercial",
@@ -20,7 +20,7 @@ const MOCK_BANKS: Bank[] = [
     source_document: "bsp-sharepoint-api",
   },
   {
-    institution_code: "002",
+    institution_code: "202",
     registration_name: "Bank of the Philippine Islands",
     trade_name: "BPI",
     bank_type: "universal_commercial",
@@ -36,7 +36,7 @@ const MOCK_BANKS: Bank[] = [
     source_document: "bsp-sharepoint-api",
   },
   {
-    institution_code: "003",
+    institution_code: "303",
     registration_name: "Tonik Digital Bank Inc.",
     bank_type: "digital",
     bsp_type_id: "14",
@@ -51,7 +51,7 @@ const MOCK_BANKS: Bank[] = [
     source_document: "bsp-sharepoint-api",
   },
   {
-    institution_code: "004",
+    institution_code: "404",
     registration_name: "Rural Bank of Closed Town",
     bank_type: "rural",
     bsp_type_id: "11",
@@ -98,13 +98,19 @@ describe("searchBanks", () => {
 
   it("scores exact matches higher than substring matches", () => {
     const results = searchBanks(MOCK_BANKS, { query: "BDO Unibank" });
-    expect(results[0].institution_code).toBe("001");
+    expect(results[0].institution_code).toBe("101");
+  });
+
+  it("returns empty array for empty or special-character queries", () => {
+    expect(searchBanks(MOCK_BANKS, { query: "" })).toEqual([]);
+    expect(searchBanks(MOCK_BANKS, { query: "!!@#$" })).toEqual([]);
+    expect(searchBanks(MOCK_BANKS, { query: "   " })).toEqual([]);
   });
 });
 
 describe("getBankByCode", () => {
   it("returns bank by institution code", () => {
-    const bank = getBankByCode(MOCK_BANKS, "001");
+    const bank = getBankByCode(MOCK_BANKS, "101");
     expect(bank).toBeDefined();
     expect(bank!.registration_name).toBe("BDO Unibank Inc.");
   });
@@ -128,25 +134,34 @@ describe("listByType", () => {
 
 describe("listByLocation", () => {
   it("lists banks by province PSGC code", () => {
-    // 1376000000 ends with 000000 (not 00000000), treated as province code
+    // 1376000000 ends with 000000, treated as province code via fallback
     // All 3 active mock banks share province_code "1376000000"
-    const results = listByLocation(MOCK_BANKS, { psgc_code: "1376000000" });
+    const results = listByLocation(MOCK_BANKS, MOCK_POPULATION, { psgc_code: "1376000000" });
     expect(results.length).toBe(3);
   });
 
   it("lists banks by municipality PSGC code", () => {
-    const results = listByLocation(MOCK_BANKS, { psgc_code: "1376300000" });
+    const results = listByLocation(MOCK_BANKS, MOCK_POPULATION, { psgc_code: "1376300000" });
     expect(results.length).toBe(1); // Only Tonik in Taguig
   });
 
   it("lists banks by region code (partial match)", () => {
-    const results = listByLocation(MOCK_BANKS, { psgc_code: "1300000000" });
+    const results = listByLocation(MOCK_BANKS, MOCK_POPULATION, { psgc_code: "1300000000" });
     expect(results.length).toBe(3);
   });
 
   it("filters by bank_type within location", () => {
-    const results = listByLocation(MOCK_BANKS, { psgc_code: "1300000000", bank_type: "digital" });
+    const results = listByLocation(MOCK_BANKS, MOCK_POPULATION, { psgc_code: "1300000000", bank_type: "digital" });
     expect(results.length).toBe(1);
+  });
+
+  it("resolves province entity code via population lookup", () => {
+    // Province entity code "0400100000" is in MOCK_POPULATION with level "Prov"
+    // and province_code "0400100000". The closed bank has province_code "0400100000"
+    // but is excluded by default active filter.
+    const results = listByLocation(MOCK_BANKS, MOCK_POPULATION, { psgc_code: "0400100000", status: "closed" });
+    expect(results.length).toBe(1);
+    expect(results[0].institution_code).toBe("404");
   });
 });
 

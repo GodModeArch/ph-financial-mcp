@@ -1,192 +1,120 @@
-# BSP Bank Directory MCP Server
+# Philippine Financial Access MCP Server
 
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) server that provides the complete BSP-supervised Philippine banking directory to LLMs. Built on Cloudflare Workers with static JSON data.
+A [Model Context Protocol](https://modelcontextprotocol.io/) server that provides Philippine financial access point data to LLMs. 587 BSP-supervised institutions, 37,834 geocoded branch locations, proximity search, and financial inclusion analytics. Built on Cloudflare Workers with static JSON data.
 
-Public, read-only, no authentication required. 587 institutions across all BSP-supervised categories, each enriched with [PSGC](https://psa.gov.ph/classification/psgc/) location codes for geographic queries. Covers 13,500+ bank offices and branches nationwide.
-
-## What This Does
-
-This server lets LLMs answer questions about the Philippine banking system:
-
-- "Which banks operate in Cebu?"
-- "How many digital banks are there in the Philippines?"
-- "Who is the president of BDO?"
-- "What rural banks are in the CALABARZON region?"
-- "Give me contact details for all cooperative banks."
-
-It does this by exposing structured, searchable BSP directory data through the MCP protocol, so any MCP-compatible client (Claude Desktop, Cursor, custom agents) can query it like a tool call.
-
-## MCP Client Configuration
-
-Add to your MCP client config:
-
-```json
-{
-  "mcpServers": {
-    "bsp-banks": {
-      "url": "https://bsp-banks.godmode.ph/mcp"
-    }
-  }
-}
-```
-
-Works with Claude Desktop, Cursor, Windsurf, and any MCP-compatible client.
+Public, read-only, no authentication required. Data sourced from the [Bangko Sentral ng Pilipinas](https://www.bsp.gov.ph/) (BSP) SharePoint API and the [2024 Census of Population](https://psa.gov.ph/) via [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP). All data bundled at build time for low-latency global access.
 
 ## Tools
 
-| Tool | Description | Paginated |
-|------|-------------|-----------|
-| `search_banks` | Fuzzy search by registration name or trade name | Yes |
-| `get_bank` | Look up a single bank by institution code | No |
-| `list_banks_by_type` | List all banks of a specific category | Yes |
-| `list_banks_by_location` | List banks in a region, province, or municipality (via PSGC code) | Yes |
-| `get_bank_stats` | Aggregate counts by type, region, and status | No |
-| `get_banking_density` | Population-per-bank ratio for any region, province, or municipality | No |
-| `find_underbanked_areas` | Rank regions or provinces by banking coverage (most underbanked first) | No |
+### Branch-Level Tools
 
-All tools default to active institutions. Pass `status: "closed"` or `status: "under_receivership"` to include inactive ones.
+| Tool | Description |
+|------|-------------|
+| `search_branches` | Search 37,834 access points by institution or branch name. Filter by region, province, town, industry type, ATM availability. |
+| `get_branch` | Look up a single branch by ID. |
+| `get_coverage` | Coverage report for any PSGC area: access point counts by type (bank/ATM/NSSLA), unique institutions, population ratio. |
+| `find_unbanked_areas` | Find municipalities with zero access points. Sorted by population (largest unserved first). |
+| `find_underserved_areas` | Rank regions or provinces by population-per-access-point ratio. |
+| `get_institution_footprint` | Map a bank's nationwide presence: branch count by region/province, ATM stats. |
+| `compare_coverage` | Side-by-side coverage comparison of two PSGC areas. |
 
-### Bank Types
+### Institution-Level Tools
 
-| Type | Description | Count |
-|------|-------------|-------|
-| `universal_commercial` | Universal and Commercial Banks (includes branches of foreign banks, OBUs, representative offices) | 53 |
-| `thrift` | Thrift/Savings Banks and Private Development Banks | 42 |
-| `rural` | Rural Banks (includes microfinance-oriented rural banks) | 351 |
-| `cooperative` | Cooperative Banks | 21 |
-| `digital` | Digital Banks | 6 |
-| `quasi_bank` | Non-Banks with Quasi-Banking Functions (financing companies, investment houses) | 5 |
-| `non_bank_fi` | Non-Bank Financial Institutions (NSSLAs, financing companies, securities dealers, trust corps, lending investors, remittance agents, credit card companies) | 109 |
+| Tool | Description |
+|------|-------------|
+| `search_banks` | Search 587 BSP-supervised institutions by name (fuzzy match on registration and trade name). |
+| `get_bank` | Look up an institution by code. Includes contact info, head office address. |
+| `list_banks_by_type` | List all institutions of a category (digital, rural, thrift, etc.). |
+| `list_banks_by_location` | List institutions by PSGC code (region/province/municipality). |
+| `get_bank_stats` | Aggregate counts by type, region, and status. |
+| `get_banking_density` | Head-office-based population-per-bank ratio for any PSGC area. |
+| `find_underbanked_areas` | Rank areas by head office density (complements branch-level `find_underserved_areas`). |
 
-### Sample Prompts
+### Industry Types
 
-These are natural-language prompts you can give to an LLM connected to this server:
+Branch data includes three industry classifications:
 
-**Lookup and search:**
-- "Look up BDO Unibank in the BSP directory."
-- "Find all banks with 'Bangko' in the name."
-- "What is the official registration name for BPI?"
-- "Who is the president of Metrobank?"
+| Industry | Count | Description |
+|----------|-------|-------------|
+| `BANK` | 26,675 | Full-service bank branches |
+| `ATM ONLY` | 10,961 | Standalone ATMs not co-located with a branch |
+| `NSSLA` | 198 | Non-Stock Savings and Loan Associations |
 
-**Filtering by type:**
-- "List all 6 digital banks in the Philippines."
-- "How many rural banks are there? List the top 10 by office count."
-- "Show me all cooperative banks and their head office locations."
-- "Which non-bank financial institutions are BSP-supervised?"
+### Institution Types
 
-**Location queries (pairs well with [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP)):**
-- "What banks are headquartered in Makati?"
-- "List all rural banks in the CALABARZON region."
-- "How many banks operate in Davao?"
-- "Which thrift banks are in Cebu province?"
+| Type | Count | Description |
+|------|-------|-------------|
+| `universal_commercial` | 53 | Universal and Commercial Banks (includes branches of foreign banks, OBUs, representative offices) |
+| `thrift` | 42 | Thrift/Savings Banks and Private Development Banks |
+| `rural` | 351 | Rural Banks (includes microfinance-oriented rural banks) |
+| `cooperative` | 21 | Cooperative Banks |
+| `digital` | 6 | Digital Banks |
+| `quasi_bank` | 5 | Non-Banks with Quasi-Banking Functions |
+| `non_bank_fi` | 109 | Non-Bank Financial Institutions (NSSLAs, financing companies, securities dealers, etc.) |
 
-**Statistics and analysis:**
-- "Give me a breakdown of BSP-supervised institutions by type."
-- "How many banks are in NCR vs. Visayas vs. Mindanao?"
-- "What percentage of Philippine banks are rural banks?"
+### Coverage Report
 
-**Banking density and coverage (uses 2024 Census population data):**
-- "What is the banking density in NCR vs. CALABARZON?"
-- "How many people per bank are there in Cebu?"
-- "Which regions in the Philippines are most underbanked?"
-- "Rank provinces by rural bank coverage."
-- "What is the population-to-bank ratio in Makati vs. Quezon City?"
+The `get_coverage` tool returns a financial access point report for any PSGC area (region, province, or municipality).
 
-### Tool Call Examples
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `psgc_code` | `string` | Yes | 10-digit PSGC code |
+| `industry` | `string` | No | Filter by industry type |
 
-For developers integrating directly:
+Response includes `total_access_points`, `bank_branches`, `atm_only`, `nssla`, `unique_institutions`, `with_atm`, `population`, and `population_per_access_point`.
 
-```
-search_banks({ query: "BDO" })
-search_banks({ query: "Rural Bank", bank_type: "rural", limit: 10 })
-get_bank({ institution_code: "0001" })
-list_banks_by_type({ bank_type: "digital" })
-list_banks_by_location({ psgc_code: "1300000000" })            // NCR region
-list_banks_by_location({ psgc_code: "1376000000", bank_type: "thrift" })  // Makati thrift banks
-get_bank_stats({})
-get_banking_density({ psgc_code: "1300000000" })                 // NCR banking density
-get_banking_density({ psgc_code: "1376001000", bank_type: "digital" })  // Digital bank density in Makati
-find_underbanked_areas({ level: "region" })                       // Most underbanked regions
-find_underbanked_areas({ level: "province", bank_type: "rural" }) // Provinces with fewest rural banks
-```
+### Institution Footprint
 
-## Data Methodology
+The `get_institution_footprint` tool maps a bank's nationwide branch presence using fuzzy name matching.
 
-### Source
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `institution_name` | `string` | Yes | Institution name to search (e.g. "BDO", "METROBANK") |
 
-All institution data comes from the [BSP Directory of Banks and Financial Institutions](https://www.bsp.gov.ph/SitePages/financialstability/Directories.aspx), which is the official, public registry maintained by the Bangko Sentral ng Pilipinas.
+Response includes `institution_name` (canonical), `total_branches`, `by_region`, `by_province`, `with_atm`, and `industries`.
 
-### How We Get the Data
+### Unreleased Tools
 
-The BSP website renders its directory dynamically from a SharePoint list. We query the SharePoint REST API directly:
+| Tool | Status | Reason |
+|------|--------|--------|
+| `find_nearest_branches` | Implemented, not registered | BSP geocoordinates are city/district centroids, not actual branch addresses. Of 37,423 branches with coordinates, only 18,975 unique coordinate pairs exist. Branches 5km apart in reality share identical lat/lng. Haversine distance math is correct but input precision makes reported distances misleading. Will release when BSP improves geocoding to address-level. Code is in `src/branch-data.ts`. |
 
-```
-GET /lists/getbytitle('Institutions')/items?$select=Title,InstitutionTypeID,...&$top=5000
-GET /lists/getbytitle('Financial Institution')/items?$select=Code,Title&$top=5000
-```
+## Use Cases
 
-This returns structured JSON with all institution records in a single paginated request. The script is at `scripts/fetch-bsp-api.js`.
+### Financial Inclusion Analysis
+- **"Which provinces have the fewest banks per capita?"** `find_underserved_areas` at province level. Basilan: 1 access point per 67,743 people. Sulu: 1 per 63,672.
+- **"Which municipalities have zero banking?"** `find_unbanked_areas`. Talipao, Sulu: 107K people, zero access points.
+- **"How does BARMM compare to CALABARZON?"** `compare_coverage` with region PSGC codes. Side-by-side population, access points, and density ratios.
 
-We chose this approach over scraping or PDF parsing because:
+### Bank Expansion / Competitive Intelligence
+- **"Where is BDO vs Metrobank vs BPI?"** `get_institution_footprint` for each. BDO: 7,479 access points across 79 provinces. Compare regional concentration.
+- **"What's the competitive landscape in Cavite?"** `get_coverage` for Cavite. 1,361 access points, 430 unique institutions, breakdown by type (bank/ATM/NSSLA).
+- **"Which provinces have banking but no NSSLAs?"** `find_underserved_areas` filtered by industry `NSSLA`.
 
-- The BSP Directories page does not offer downloadable PDFs for the main bank list (only supplementary lists like EMIs and trust-authorized institutions have PDFs)
-- The SharePoint API returns structured data with consistent field names
-- We get fields that the HTML table doesn't show (fax numbers, number of offices, multiple type IDs)
+### Fintech Market Sizing
+- **"Where are ATM-only locations with no full-service branches?"** `search_branches` filtered by industry `ATM ONLY` in a province, cross-referenced with `get_coverage` for the branch/ATM ratio.
+- **"Which regions are ATM-heavy but branch-light?"** `get_coverage` across regions. Compare `bank_branches` vs `atm_only` counts. Markets ripe for digital banking.
 
-### How We Process It
+### Policy / Regulatory
+- **"How many digital banks are operating?"** `list_banks_by_type` with `digital`. Six licensed.
+- **"National breakdown of institution types?"** `get_bank_stats`. 587 institutions across 7 categories.
+- **"Which rural banks serve Mindanao?"** `list_banks_by_location` with region codes + `list_banks_by_type` with `rural`.
 
-**Step 1: Fetch and classify** (`scripts/fetch-bsp-api.js`)
+### Real Estate / Municipal Planning
+- **"Does this municipality have banking infrastructure?"** `get_coverage` with its PSGC code. Quick yes/no plus depth of service.
+- **"How does our town compare to the neighboring one?"** `compare_coverage`. Population-normalized comparison.
 
-Each institution has three BSP type IDs (`InstitutionTypeID`, `InstitutionTypeID2`, `InstitutionTypeID3`) that indicate its classification at different levels of granularity. We map the most specific type ID to one of 7 normalized `bank_type` values. For example, BSP type ID `12` (Rural Banks) maps to `rural`, while `13` (Cooperative Banks) maps to `cooperative`.
-
-**Step 2: PSGC location enrichment** (`scripts/psgc-join.js`)
-
-We fuzzy-match each institution's head office address to a PSGC municipality or city code using data from the [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP) project. The matching strategy:
-
-1. Check for known Metro Manila city names (Makati, Taguig, Pasig, etc.) as a fast path
-2. Extract city/municipality candidates from comma-separated address parts
-3. Normalize both sides (expand "Sta." to "Santa", "Sto." to "Santo", strip zip codes, uppercase)
-4. Exact match against normalized PSGC municipality names
-5. Try spelling variants (s/z swap for names like Ozamis/Ozamiz)
-6. Substring match as fallback
-
-**Result:** 586 of 587 institutions matched (99.8%). The single unmatched institution is BPI Remittance Center HK, which is in Hong Kong.
-
-**Step 3: Population data join** (`scripts/build-population-lookup.js`)
-
-We extract population data from the [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP) project, which sources from the PSA's 2024 Census of Population (PSGC Q4 2025 Publication). The script reads all 44,000+ geographic entities and extracts 1,756 records at the region, province, city, and municipality levels into a lightweight lookup table (`data/population.json`, ~280KB).
-
-This enables the `get_banking_density` and `find_underbanked_areas` tools. For each PSGC area, we cross-reference the number of bank head offices registered there against the area's population to compute a population-per-bank ratio.
-
-### Data Coverage
-
-| Field | Coverage |
-|-------|----------|
-| Registration name | 587/587 (100%) |
-| Head office address | 587/587 (100%) |
-| PSGC location code | 586/587 (99.8%) |
-| Contact person (president/CEO) | 581/587 (99.0%) |
-| Contact email | 574/587 (97.8%) |
-| Contact phone | 566/587 (96.4%) |
-| Number of offices | 550/587 (93.7%) |
-| Website | 85/587 (14.5%) |
-
-### Limitations
-
-- **Snapshot, not live.** The dataset is a point-in-time extract. BSP updates their directory periodically (new banks, closures, mergers). Run `scripts/check-updates.sh` to check for changes.
-- **Status field.** The BSP API does not expose an explicit "closed" or "under_receivership" flag. All institutions in the current directory are listed as `active`. Closed institutions are removed from the BSP directory entirely, so they won't appear here.
-- **Institution codes.** We assign sequential codes sorted by type and name, since the BSP API does not expose AMLC institution codes. Codes are stable within a dataset version but may shift when institutions are added or removed.
-- **Address quality varies.** Some addresses are abbreviated or incomplete (e.g. "Ayala Triangle Ayala Ave Makati Ct"). PSGC matching handles most of these but a few edge cases may have imprecise municipality matches.
-- **Population data is from the 2024 Census.** The banking density tools use 2024 Census of Population figures from PSA. This is not a live population count. Actual current population may differ, especially in fast-growing urban areas.
-- **Head office locations only.** Banking density is computed from BSP-registered head office addresses, not branch locations. A municipality showing 0 banks may still be served by branches of banks headquartered elsewhere. The `num_offices` field shows total offices per bank nationwide, but we cannot attribute individual branches to specific municipalities.
+### Journalism / Data Stories
+- **"The 10 largest towns with no bank"** `find_unbanked_areas` sorted by population.
+- **"How concentrated is Philippine banking?"** `get_institution_footprint` for the top 5 banks. BDO alone has 7,479 of 37,834 total access points (19.8%).
 
 ## Response Format
 
-All data responses use a standard envelope:
+All data responses are wrapped in a standard envelope:
 
 ```json
 {
@@ -201,20 +129,7 @@ All data responses use a standard envelope:
 }
 ```
 
-Paginated responses add:
-
-```json
-{
-  "pagination": {
-    "total": 351,
-    "offset": 0,
-    "limit": 50,
-    "has_more": true
-  }
-}
-```
-
-Density tool responses include additional provenance fields:
+Branch and coverage tools add population provenance:
 
 ```json
 {
@@ -227,18 +142,42 @@ Density tool responses include additional provenance fields:
 }
 ```
 
-Error responses return `isError: true` with a plain text message.
+Paginated responses add:
 
-### Bank Record Schema
+```json
+{
+  "pagination": { "total": 7479, "offset": 0, "limit": 20, "has_more": true }
+}
+```
+
+Error responses (`isError: true`) are returned as plain text JSON without wrapping.
+
+### Branch Record Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Branch identifier |
+| `institution_name` | `string` | Name of the parent institution |
+| `branch_name` | `string` | Branch office name |
+| `industry` | `string` | `BANK`, `ATM ONLY`, or `NSSLA` |
+| `address` | `string` | Street address |
+| `town` | `string` | Municipality/city name |
+| `province` | `string` | Province name |
+| `region` | `string` | Region name |
+| `latitude` | `number\|null` | Latitude (null if outside PH bounding box) |
+| `longitude` | `number\|null` | Longitude (null if outside PH bounding box) |
+| `has_atm` | `boolean` | Whether the branch has an ATM |
+| `psgc_muni_code` | `string` | 10-digit PSGC municipality/city code |
+| `region_code` | `string` | 10-digit PSGC region code |
+| `province_code` | `string` | 10-digit PSGC province code |
+
+### Institution Record Schema
 
 | Field | Type | Always Present | Description |
 |-------|------|----------------|-------------|
-| `institution_code` | `string` | Yes | Sequential identifier (e.g. "0001") |
+| `institution_code` | `string` | Yes | BSP SharePoint list item ID. Stable across ETL runs. |
 | `registration_name` | `string` | Yes | Official BSP registration name |
 | `bank_type` | `string` | Yes | Normalized classification (see types above) |
-| `bsp_type_id` | `number` | Yes | Raw BSP primary type ID |
-| `bsp_type_id2` | `number` | Yes | Raw BSP secondary type ID |
-| `bsp_type_id3` | `number` | Yes | Raw BSP tertiary type ID |
 | `status` | `string` | Yes | `active`, `closed`, `under_receivership`, or `merged` |
 | `head_office_address` | `string` | Yes | Head office address as listed by BSP |
 | `psgc_muni_code` | `string` | No | 10-digit PSGC municipality/city code |
@@ -254,34 +193,163 @@ Error responses return `isError: true` with a plain text message.
 | `date_sourced` | `string` | Yes | Date the data was fetched (ISO format) |
 | `source_document` | `string` | Yes | Data source identifier |
 
-## Updating Data
+## Connect
 
-Check if BSP has updated their directory:
+Add to your MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "ph-financial-access": {
+      "url": "https://bsp-banks.godmode.ph/mcp"
+    }
+  }
+}
+```
+
+Works with Claude Desktop, Cursor, Windsurf, Claude Code, and any MCP-compatible client.
+
+### Quick test
+
+```bash
+curl -X POST https://bsp-banks.godmode.ph/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "search_branches",
+      "arguments": { "query": "BDO", "limit": 3 }
+    }
+  }'
+```
+
+## Data Sources
+
+| Source | Vintage | Records | Description |
+|--------|---------|---------|-------------|
+| [BSP Institutions API](https://www.bsp.gov.ph/SitePages/financialstability/Directories.aspx) | March 2026 | 587 | BSP-supervised financial institutions (SharePoint REST API) |
+| BSP FSAP API | March 2026 | 37,834 | Financial Service Access Points with geocoordinates (SharePoint REST API) |
+| [2024 Census of Population](https://psa.gov.ph/population-and-housing) | Proclamation No. 973 | 1,756 areas | Population counts via PSGC-MCP |
+| [PSGC Q4 2025 Publication](https://psa.gov.ph/classification/psgc/) | January 13, 2026 | 1,656 municipalities | Geographic codes and hierarchy |
+
+Last synced: March 12, 2026.
+
+### Known Data Issues
+
+- **Geocoordinate quality.** 411 of 37,834 branch records have coordinates outside the Philippines. 167 default to Poughkeepsie, NY (41.60, -73.09) and 101 to Grand Forks, ND (47.93, -97.03), likely geocoding tool defaults. 3 are legitimate overseas branches (BDO Hong Kong). The remaining 140 are scattered globally (geocoding errors). All are nulled out for proximity search but preserved for text queries.
+- **Geocoordinate precision.** BSP's geocoding assigns city or district centroids rather than actual branch addresses. Of 37,423 branches with valid coordinates, only 18,975 unique coordinate pairs exist. 4,917 branches share a coordinate with 10+ other branches. The worst case is 79 branches at a single point in Calamba, Laguna. In Makati, branches on Chino Roces Extension, Gil Puyat, Ayala Avenue, Jupiter Street, and even one in Marikina City all share the same coordinate. The `find_nearest_branches` tool will correctly identify branches in the general area, but reported distances are unreliable. Treat proximity results as "branches in this city/district", not "branches within walking distance."
+- **Manila city district granularity.** BSP tags Manila branches with "CITY OF MANILA" as the town, not the individual district (Tondo, Sampaloc, Malate, etc.). This means Manila's 14 city districts (SubMun-level PSGC entities) appear as "unbanked" in `find_unbanked_areas` even though branches exist in those districts. The branches are matched to the City of Manila entity (`1380600000`), not to district-level codes. This affects Tondo I/II (pop 637K), Sampaloc (398K), and other Manila districts.
+- **Institution PSGC match.** 586 of 587 institutions matched to PSGC municipality codes (99.8%). The one unmatched institution is BPI Remittance Center HK, an overseas office with a Hong Kong address. It has no `psgc_muni_code`, `region_code`, or `province_code` and will not appear in location-based queries.
+- **Institution codes.** Sourced from BSP's SharePoint list item `Id` field. Stable across ETL runs as long as BSP does not rebuild the list. Not a BSP-issued regulatory identifier.
+- **Status field.** BSP API does not expose closure status. All fetched institutions are marked `active`. Closed banks are removed from BSP's directory entirely.
+- **Population is 2024 Census.** Point-in-time count, not a live estimate. Fast-growing urban areas may have significantly higher actual population.
+- **Institution name fragmentation.** FSAP data produces 9,623 unique institution name strings, many being the same bank with slight variations (abbreviations, typos). The `get_institution_footprint` tool uses fuzzy matching to consolidate these, which means a query for "BDO" will also capture ATM installations inside client offices (e.g., "BDO UNIBANK INC-WHITE & CASE GLOBAL OPERATIONS CENTER MANILA LLP"). These are real BSP-registered access points but may surprise users expecting only retail branches.
+
+## Related Projects
+
+Part of a suite of Philippine public data MCP servers:
+
+- **[PSGC MCP](https://github.com/GodModeArch/PSGC-MCP)** -- Philippine geographic codes. 42,000+ entities from barangay to region, with 2024 census population. Use alongside this server for PSGC code lookups.
+- **[LTS MCP](https://github.com/GodModeArch/lts-mcp)** -- DHSUD License to Sell verification for Philippine real estate projects.
+- **[PH Holidays MCP](https://github.com/GodModeArch/ph-holidays-mcp)** -- Philippine holiday calendar
+
+All servers are free, public, and read-only. Data pulled from official Philippine government sources.
+
+## Contributing and Issues
+
+Found a data error, a PSGC matching edge case, or a branch with wrong coordinates? Open an issue. The known data issues section above covers the most common ones, but BSP data has its own quirks and the issues list is the best place to track them.
+
+BSP updates their directory periodically. If the data looks stale, open an issue and it will be refreshed.
+
+## Data Pipeline
+
+The BSP website renders its directories dynamically from SharePoint lists. We query the SharePoint REST API directly, which returns structured JSON. This approach beats scraping or PDF parsing: we get fields the HTML table doesn't show (fax numbers, office counts, multiple type IDs, geocoordinates).
+
+### 1. Fetch institutions
+
+```bash
+node scripts/fetch-bsp-api.js
+```
+
+Fetches 587 institutions from `_api/web/lists/getbytitle('Institutions')/items`. Classifies each using BSP's three-tier type ID system into 7 normalized `bank_type` values. Outputs `data/banks.json`.
+
+### 2. PSGC join (institutions)
+
+```bash
+node scripts/psgc-join.js
+```
+
+Fuzzy-matches head office addresses to PSGC municipality codes. Strategy: Metro Manila fast path, candidate extraction from comma-separated address parts, normalization (expand Sta./Sto., strip zip codes), exact match, spelling variants (s/z swap), substring fallback. Result: 586/587 matched (99.8%). Enriches `data/banks.json` in place.
+
+### 3. Fetch branches
+
+```bash
+node scripts/fetch-branches.js
+```
+
+Fetches 37,834 access points from `_api/web/lists/getbytitle('FSAP')/items`. Splits Title field into institution/branch names. Validates geocoordinates against Philippine bounding box (4.5-21.5 lat, 116-127 lng), nulling 411 out-of-bounds records. Outputs `data/branches.json`.
+
+### 4. PSGC join (branches)
+
+```bash
+node scripts/branch-psgc-join.js
+```
+
+Matches Town/Province/Region text fields to PSGC municipality codes. Four-strategy approach: NCR fast path (11,824), direct normalized match (20,501), province/region disambiguation (5,401), substring fallback (53). Result: 37,779/37,779 in-scope matched (100%). 55 overseas branches skipped. Enriches `data/branches.json` in place.
+
+### 5. Build population lookup
+
+```bash
+node scripts/build-population-lookup.js
+```
+
+Extracts 1,756 region/province/city/municipality population records from PSGC-MCP into `data/population.json`.
+
+### 6. Verify and deploy
+
+```bash
+npm test
+npm run typecheck
+npm run deploy
+```
+
+The ETL is idempotent. Each run overwrites the previous data files. Review the diff before deploying.
+
+Requires [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP) as a sibling directory for steps 2, 4, and 5. Not needed for development if `data/*.json` files already exist.
+
+### Check for updates
 
 ```bash
 ./scripts/check-updates.sh
 ```
 
-To refresh the full dataset:
-
-```bash
-node scripts/fetch-bsp-api.js           # Fetch all institutions from BSP SharePoint API
-node scripts/psgc-join.js               # Enrich with PSGC location codes
-node scripts/build-population-lookup.js  # Rebuild population lookup from PSGC data
-npm test                                 # Run tests to verify data integrity
-npm run deploy                           # Deploy updated data to Cloudflare
-```
-
-The ETL is idempotent. Running it again will overwrite `data/banks.json` with fresh data. Review the diff before deploying.
+Checks if BSP has updated their directory since the last sync.
 
 ## Development
 
+This repo uses [Git LFS](https://git-lfs.github.com/) for `data/branches.json` (19MB). Install Git LFS before cloning:
+
 ```bash
-git clone https://github.com/GodModeArch/bsp-bank-directory-mcp.git
-cd bsp-bank-directory-mcp
+git lfs install    # one-time setup
+git clone <repo>
 npm install
-npm run dev          # Local dev server on :8787
-npm test             # Run tests (26 tests)
+npm run dev
+```
+
+If you already cloned without LFS, fetch the data:
+
+```bash
+git lfs install
+git lfs pull
+```
+
+Dev server starts at `http://localhost:8787`. Connect your MCP client to `http://localhost:8787/mcp`.
+
+```bash
+npm test             # Run tests
 npm run typecheck    # TypeScript strict mode check
 ```
 
@@ -289,32 +357,42 @@ npm run typecheck    # TypeScript strict mode check
 
 ```
 src/
-  index.ts          # Cloudflare Worker entry point, McpAgent class
-  tools.ts          # 7 MCP tool definitions with Zod schemas
-  data.ts           # Search, filter, and aggregation functions
-  response.ts       # Response envelope helpers
-  types.ts          # TypeScript interfaces
+  index.ts           # Cloudflare Worker entry, McpAgent class
+  tools.ts           # 15 MCP tool definitions with Zod schemas
+  data.ts            # Institution search, filter, density functions
+  branch-data.ts     # Branch search, proximity, coverage functions
+  response.ts        # Response envelope helpers
+  types.ts           # TypeScript interfaces
 data/
-  banks.json        # The dataset (587 institutions, bundled into worker)
-  population.json   # Population by region/province/municipality (2024 Census, 1,756 areas)
-  etl-log.json      # ETL run metadata
-  psgc-join-log.json # PSGC matching results and unmatched list
+  banks.json         # 587 institutions (bundled into worker)
+  branches.json      # 37,834 access points (bundled into worker, Git LFS)
+  population.json    # 2024 Census population by area (1,756 records)
 scripts/
-  fetch-bsp-api.js  # Fetches from BSP SharePoint REST API
-  psgc-join.js      # Fuzzy-matches addresses to PSGC codes
-  build-population-lookup.js  # Extracts population data from PSGC-MCP
-  check-updates.sh  # Checks if BSP has new data
-  download-pdfs.sh  # Legacy: downloads supplementary BSP PDFs
+  fetch-bsp-api.js   # Institution ETL from BSP SharePoint API
+  fetch-branches.js  # Branch ETL from BSP FSAP SharePoint list
+  psgc-join.js       # Institution address -> PSGC code matching
+  branch-psgc-join.js # Branch town/province -> PSGC code matching
+  build-population-lookup.js  # Population data extraction
+  check-updates.sh   # BSP update checker
 test/
-  data.test.ts      # Unit tests for search, filter, and stats functions
+  data.test.ts       # Institution function tests
+  branch-data.test.ts # Branch function tests
 ```
 
-## Related MCP Servers
+### Architecture
 
-Part of a suite of Philippine public data MCP servers:
+Runs on Cloudflare Workers with Durable Objects. All data is bundled as static JSON at build time (2.5MB gzip total). No database, no external API calls at runtime. Queries execute in-memory against the bundled dataset.
 
-- [PSGC-MCP](https://github.com/GodModeArch/PSGC-MCP) -- Philippine geographic codes. 42,000+ entities from barangay to region, with 2024 census population data. Use alongside this server for location-based bank queries.
-- [LTS-MCP](https://github.com/GodModeArch/lts-mcp) -- DHSUD License to Sell verification for Philippine real estate projects.
+Proximity search uses brute-force Haversine distance over 37K records. At this scale, it completes in ~1-2ms per query on Workers. No spatial index needed.
+
+## Built by
+
+**Aaron Zara** -- Fractional CTO at [Godmode Digital](https://godmode.ph)
+
+This MCP came out of needing structured, queryable Philippine banking data for AI agents. The BSP publishes all of this data, but not in a format machines can easily consume. We wrote the ETL pipeline, PSGC geographic enrichment, and queryable API layer. The data is public. The code is the recipe, the hosted instance is the restaurant.
+
+For enterprise SLAs, custom integrations, or other PH data sources:
+[godmode.ph](https://godmode.ph)
 
 ## License
 

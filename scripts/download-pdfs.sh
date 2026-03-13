@@ -32,7 +32,7 @@ done
 # AMLC covered persons list
 echo "Downloading AMLC covered persons list..."
 curl -sL -o "$TARGET_DIR/amlc-covered-persons.pdf" \
-  "http://www.amlc.gov.ph/images/PDFs/LISTS%20OF%20BSP%20COVERED%20PERSONS.pdf" \
+  "https://www.amlc.gov.ph/images/PDFs/LISTS%20OF%20BSP%20COVERED%20PERSONS.pdf" \
   || echo "WARN: Failed to download AMLC list"
 
 echo "Done. Check $TARGET_DIR/ for downloaded files."

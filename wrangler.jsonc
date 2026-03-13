@@ -1,5 +1,5 @@
 {
-  "name": "bsp-bank-directory-mcp",
+  "name": "ph-financial-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
@@ -18,7 +18,7 @@
     ]
   },
   "vars": {
-    "DATASET_VERSION": "1.0.0",
+    "DATASET_VERSION": "2.0.0",
     "DATASET_DATE": "2026-03-12",
     "LAST_SYNCED": "2026-03-12"
   },

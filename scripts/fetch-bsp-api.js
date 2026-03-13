@@ -9,7 +9,7 @@
 import { writeFileSync, mkdirSync } from "fs";
 
 const BASE_URL = "https://www.bsp.gov.ph/_api/web/lists/getbytitle";
-const INSTITUTIONS_URL = `${BASE_URL}('Institutions')/items?$select=Title,InstitutionTypeID,InstitutionTypeID2,InstitutionTypeID3,Website,Email,Fax,Contact,President,Authority,Address,NumOffice&$top=5000&$orderby=Title%20asc`;
+const INSTITUTIONS_URL = `${BASE_URL}('Institutions')/items?$select=Id,Title,InstitutionTypeID,InstitutionTypeID2,InstitutionTypeID3,Website,Email,Fax,Contact,President,Authority,Address,NumOffice&$top=5000&$orderby=Title%20asc`;
 const TYPES_URL = `${BASE_URL}('Financial%20Institution')/items?$select=Code,Title&$top=5000&$orderby=Code%20asc`;
 
 const HEADERS = {
@@ -73,11 +73,22 @@ async function fetchAllPages(baseUrl) {
     allItems.push(...results);
     console.log(`  Got ${results.length} items (total: ${allItems.length})`);
 
-    // SharePoint pagination: __next link
-    url = data.d?.__next || null;
+    // SharePoint pagination: validate __next URL stays on BSP domain
+    const nextUrl = data.d?.__next || null;
+    if (nextUrl && !nextUrl.startsWith("https://www.bsp.gov.ph/")) {
+      console.warn(`  Skipping unexpected pagination URL: ${nextUrl}`);
+      url = null;
+    } else {
+      url = nextUrl;
+    }
   }
 
   return allItems;
+}
+
+function stripHtml(value) {
+  if (!value || typeof value !== "string") return value;
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function mapBankType(typeId, typeId2) {
@@ -88,26 +99,29 @@ function mapBankType(typeId, typeId2) {
   return TYPE_MAP[typeId] || "non_bank_fi";
 }
 
-function transformInstitution(item, index) {
+function transformInstitution(item) {
   const typeId = item.InstitutionTypeID;
   const typeId2 = item.InstitutionTypeID2;
   const typeId3 = item.InstitutionTypeID3;
 
   return {
-    institution_code: String(index + 1).padStart(4, "0"),
+    // BSP SharePoint list item ID. Stable across ETL runs.
+    institution_code: String(item.Id),
     registration_name: item.Title || "",
     bank_type: mapBankType(typeId, typeId2),
     bsp_type_id: typeId,
     bsp_type_id2: typeId2,
     bsp_type_id3: typeId3,
+    // BSP API does not provide status. All fetched institutions are assumed active.
+    // Cross-reference BSP closure/receivership PDFs for accurate status.
     status: "active",
     head_office_address: item.Address || "",
-    contact_person: item.President || undefined,
-    contact_title: item.Authority || undefined,
-    contact_email: item.Email || undefined,
-    contact_phone: item.Contact || undefined,
-    website: item.Website || undefined,
-    fax: item.Fax || undefined,
+    contact_person: stripHtml(item.President) || undefined,
+    contact_title: stripHtml(item.Authority) || undefined,
+    contact_email: stripHtml(item.Email) || undefined,
+    contact_phone: stripHtml(item.Contact) || undefined,
+    website: stripHtml(item.Website) || undefined,
+    fax: stripHtml(item.Fax) || undefined,
     num_offices: item.NumOffice || undefined,
     date_sourced: "2026-03-12",
     source_document: "bsp-sharepoint-api",
@@ -134,18 +148,13 @@ async function main() {
   console.log(`\nSaved ${raw.length} raw institution records\n`);
 
   // Transform to our schema
-  const banks = raw.map((item, i) => transformInstitution(item, i));
+  const banks = raw.map((item) => transformInstitution(item));
 
   // Sort by bank_type then name
   banks.sort((a, b) => {
     if (a.bank_type !== b.bank_type) return a.bank_type.localeCompare(b.bank_type);
     return a.registration_name.localeCompare(b.registration_name);
   });
-
-  // Re-number after sort
-  for (let i = 0; i < banks.length; i++) {
-    banks[i].institution_code = String(i + 1).padStart(4, "0");
-  }
 
   writeFileSync("data/banks.json", JSON.stringify(banks, null, 2));
 

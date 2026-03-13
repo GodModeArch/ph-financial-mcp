@@ -1,23 +1,25 @@
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Bank, PopulationLookup } from "./types.js";
+import type { Bank, Branch, PopulationLookup } from "./types.js";
 import { registerTools } from "./tools.js";
 
 // Static imports - bundled into the worker at build time
 import banksData from "../data/banks.json";
+import branchesData from "../data/branches.json";
 import populationData from "../data/population.json";
 
 const banks = banksData as unknown as Bank[];
+const branches = branchesData as unknown as Branch[];
 const population = populationData as unknown as PopulationLookup;
 
 export class BSPBanksMCP extends McpAgent {
   server = new McpServer({
-    name: "BSP Bank Directory",
-    version: "1.0.0",
+    name: "ph-financial-mcp",
+    version: "2.0.0",
   });
 
   async init() {
-    registerTools(this.server, banks, population, this.env);
+    registerTools(this.server, banks, branches, population, this.env);
   }
 }
 
@@ -32,9 +34,9 @@ export default {
     if (url.pathname === "/" || url.pathname === "") {
       return new Response(
         JSON.stringify({
-          name: "BSP Bank Directory MCP",
-          version: "1.0.0",
-          description: "Philippine banking directory from BSP with PSGC location support",
+          name: "ph-financial-mcp",
+          version: "2.0.0",
+          description: "Philippine banking directory from BSP with PSGC location support and branch-level coverage tools",
           mcp_endpoint: "/mcp",
           tools: [
             "search_banks",
@@ -44,6 +46,13 @@ export default {
             "get_bank_stats",
             "get_banking_density",
             "find_underbanked_areas",
+            "search_branches",
+            "get_branch",
+            "get_coverage",
+            "find_unbanked_areas",
+            "find_underserved_areas",
+            "get_institution_footprint",
+            "compare_coverage",
           ],
           source: "Bangko Sentral ng Pilipinas (BSP)",
         }),
