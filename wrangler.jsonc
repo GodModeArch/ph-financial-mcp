@@ -5,7 +5,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "routes": [
     {
-      "pattern": "bsp-banks.godmode.ph",
+      "pattern": "ph-financial-mcp.godmode.ph",
       "custom_domain": true
     }
   ],
