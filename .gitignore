@@ -1,10 +1,29 @@
+# Dependencies
 node_modules/
+
+# Build
 dist/
-.wrangler/
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
 .dev.vars
-__pycache__/
-*.pyc
-.venv/
+
+# Cloudflare Workers
+.wrangler/
+
+# Auto-generated (regenerate via: npm run cf-typegen)
+worker-configuration.d.ts
 
 # IDE
 .idea
@@ -12,26 +31,21 @@ __pycache__/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # MCP client config
 .mcp.json
 
-# Shell dotfiles (sandbox artifacts)
-.bash_profile
-.bashrc
-.zshrc
-.zprofile
-.profile
-.gitconfig
-.ripgreprc
-.gitmodules
+# npm pack output
+*.tgz
 
-# Sandbox device files
-HEAD
-config
-hooks
-objects
-refs
+# WSL artifacts
+*Zone.Identifier
+
+# Internal docs (not for public repo)
+docs/build-journal.md
+docs/plans/
+docs/smoke-test-results.md
 
 # ETL raw/intermediate artifacts
 data/raw/*.pdf
@@ -40,4 +54,5 @@ data/branches-raw.json
 data/branches-etl-log.json
 data/branch-psgc-join-log.json
 data/bsp-types.json
+data/etl-log.json
 data/psgc-join-log.json

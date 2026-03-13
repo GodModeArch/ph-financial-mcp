@@ -119,7 +119,7 @@ All data responses are wrapped in a standard envelope:
 ```json
 {
   "_meta": {
-    "dataset_version": "1.0.0",
+    "dataset_version": "2.0.0",
     "dataset_date": "2026-03-12",
     "last_synced": "2026-03-12",
     "source": "Bangko Sentral ng Pilipinas (BSP)",
@@ -201,7 +201,7 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "ph-financial-access": {
-      "url": "https://bsp-banks.godmode.ph/mcp"
+      "url": "https://ph-financial-mcp.godmode.ph/mcp"
     }
   }
 }
@@ -212,7 +212,7 @@ Works with Claude Desktop, Cursor, Windsurf, Claude Code, and any MCP-compatible
 ### Quick test
 
 ```bash
-curl -X POST https://bsp-banks.godmode.ph/mcp \
+curl -X POST https://ph-financial-mcp.godmode.ph/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
@@ -330,20 +330,11 @@ Checks if BSP has updated their directory since the last sync.
 
 ## Development
 
-This repo uses [Git LFS](https://git-lfs.github.com/) for `data/branches.json` (19MB). Install Git LFS before cloning:
-
 ```bash
-git lfs install    # one-time setup
-git clone <repo>
+git clone https://github.com/GodModeArch/ph-financial-mcp.git
+cd ph-financial-mcp
 npm install
 npm run dev
-```
-
-If you already cloned without LFS, fetch the data:
-
-```bash
-git lfs install
-git lfs pull
 ```
 
 Dev server starts at `http://localhost:8787`. Connect your MCP client to `http://localhost:8787/mcp`.
@@ -365,7 +356,7 @@ src/
   types.ts           # TypeScript interfaces
 data/
   banks.json         # 587 institutions (bundled into worker)
-  branches.json      # 37,834 access points (bundled into worker, Git LFS)
+  branches.json      # 37,834 access points (bundled into worker)
   population.json    # 2024 Census population by area (1,756 records)
 scripts/
   fetch-bsp-api.js   # Institution ETL from BSP SharePoint API

@@ -1,11 +1,33 @@
 {
-  "name": "ph-financial-mcp",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@aaronzara/ph-financial-mcp",
+  "version": "2.0.0",
+  "private": false,
   "type": "module",
+  "description": "MCP server providing Philippine financial access point data to AI agents. 587 BSP-supervised institutions, 37,834 geocoded branch locations, and financial inclusion analytics. Built on Cloudflare Workers.",
+  "author": "Aaron Zara <aaron.zara@godmode.ph>",
+  "homepage": "https://godmode.ph",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GodModeArch/ph-financial-mcp.git"
+  },
+  "license": "MIT",
+  "files": [
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "philippines",
+    "bsp",
+    "banking",
+    "financial-inclusion",
+    "psgc",
+    "cloudflare-workers"
+  ],
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

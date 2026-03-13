@@ -1,4 +1,5 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ph-financial-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2025-03-10",
@@ -27,5 +28,8 @@
       "tag": "v1",
       "new_sqlite_classes": ["BSPBanksMCP"]
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true
+  }
 }
