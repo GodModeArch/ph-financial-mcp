@@ -14,7 +14,7 @@ const population = populationData as unknown as PopulationLookup;
 
 export class BSPBanksMCP extends McpAgent {
   server = new McpServer({
-    name: "ph-financial-mcp",
+    name: "ph-financial-access-mcp",
     version: "1.0.0",
   });
 
@@ -34,9 +34,9 @@ export default {
     if (url.pathname === "/" || url.pathname === "") {
       return new Response(
         JSON.stringify({
-          name: "ph-financial-mcp",
+          name: "ph-financial-access-mcp",
           version: "1.0.0",
-          description: "Philippine banking directory from BSP with PSGC location support and branch-level coverage tools",
+          description: "Philippine financial access data from BSP — 587 supervised institutions across 7 categories, 37,834 branch and ATM locations, and financial inclusion analytics with PSGC support",
           mcp_endpoint: "/mcp",
           tools: [
             "search_banks",

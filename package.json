@@ -1,9 +1,9 @@
 {
-  "name": "@aaronzara/ph-financial-mcp",
+  "name": "@aaronzara/ph-financial-access-mcp",
   "version": "1.0.0",
   "private": false,
   "type": "module",
-  "description": "MCP server providing Philippine financial access point data to AI agents. 587 BSP-supervised institutions, 37,834 geocoded branch locations, and financial inclusion analytics. Built on Cloudflare Workers.",
+  "description": "Philippine Financial Access MCP Server. 587 BSP-supervised institutions across 7 categories (universal, thrift, rural, cooperative, digital banks, quasi-banks, non-bank FIs), 37,834 geocoded branch and ATM locations, and financial inclusion analytics. Built on Cloudflare Workers.",
   "author": "Aaron Zara <aaron.zara@godmode.ph>",
   "homepage": "https://godmode.ph",
   "repository": {
