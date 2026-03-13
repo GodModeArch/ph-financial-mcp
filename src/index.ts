@@ -15,7 +15,7 @@ const population = populationData as unknown as PopulationLookup;
 export class BSPBanksMCP extends McpAgent {
   server = new McpServer({
     name: "ph-financial-mcp",
-    version: "2.0.0",
+    version: "1.0.0",
   });
 
   async init() {
@@ -35,7 +35,7 @@ export default {
       return new Response(
         JSON.stringify({
           name: "ph-financial-mcp",
-          version: "2.0.0",
+          version: "1.0.0",
           description: "Philippine banking directory from BSP with PSGC location support and branch-level coverage tools",
           mcp_endpoint: "/mcp",
           tools: [

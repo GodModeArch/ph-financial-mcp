@@ -119,7 +119,7 @@ All data responses are wrapped in a standard envelope:
 ```json
 {
   "_meta": {
-    "dataset_version": "2.0.0",
+    "dataset_version": "1.0.0",
     "dataset_date": "2026-03-12",
     "last_synced": "2026-03-12",
     "source": "Bangko Sentral ng Pilipinas (BSP)",

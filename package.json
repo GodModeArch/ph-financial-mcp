@@ -1,6 +1,6 @@
 {
   "name": "@aaronzara/ph-financial-mcp",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "private": false,
   "type": "module",
   "description": "MCP server providing Philippine financial access point data to AI agents. 587 BSP-supervised institutions, 37,834 geocoded branch locations, and financial inclusion analytics. Built on Cloudflare Workers.",
