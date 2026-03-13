@@ -201,7 +201,7 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "ph-financial-access": {
-      "url": "https://ph-financial-mcp.godmode.ph/mcp"
+      "url": "https://ph-financial.godmode.ph/mcp"
     }
   }
 }
@@ -212,7 +212,7 @@ Works with Claude Desktop, Cursor, Windsurf, Claude Code, and any MCP-compatible
 ### Quick test
 
 ```bash
-curl -X POST https://ph-financial-mcp.godmode.ph/mcp \
+curl -X POST https://ph-financial.godmode.ph/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
