@@ -8,7 +8,7 @@
   "homepage": "https://godmode.ph",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GodModeArch/ph-financial-mcp.git"
+    "url": "git+https://github.com/GodModeArch/ph-financial-access-mcp.git"
   },
   "license": "MIT",
   "files": [

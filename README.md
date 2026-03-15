@@ -331,8 +331,8 @@ Checks if BSP has updated their directory since the last sync.
 ## Development
 
 ```bash
-git clone https://github.com/GodModeArch/ph-financial-mcp.git
-cd ph-financial-mcp
+git clone https://github.com/GodModeArch/ph-financial-access-mcp.git
+cd ph-financial-access-mcp
 npm install
 npm run dev
 ```
